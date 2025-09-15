@@ -1,7 +1,11 @@
 import { stepCountIs, streamText } from "ai";
 import { google } from "@ai-sdk/google"; // Import the google module from the ai-sdk package
 import { SYSTEM_PROMPT } from "./prompts";
-import { getFileChangesInDirectoryTool } from "./tools";
+import { 
+    getFileChangesInDirectoryTool,
+    generateCommitMessageTool,
+    generateMarkdownFileTool
+ } from "./tools";
 
 // specify the model to use for generating review, a prompt, tools, and when to stop
 const codeReviewAgent = async (prompt: string) => {
@@ -9,7 +13,7 @@ const codeReviewAgent = async (prompt: string) => {
         model: google("models/gemini-2.5-flash"),
         prompt,
         system: SYSTEM_PROMPT,
-        tools: { getFileChangesInDirectoryTool },
+        tools: { getFileChangesInDirectoryTool, generateCommitMessageTool, generateMarkdownFileTool },
         stopWhen: stepCountIs(10),
     });
 
