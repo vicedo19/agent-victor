@@ -21,6 +21,7 @@ const commitMessageInput = z.object({
     description: z.string().min(1).describe("Brief description of the changes"),
     body: z.string().optional().describe("Detailed description of the changes (optional)"),
     breakingChange: z.boolean().default(false).describe("Whether this is a breaking change"),
+    breakingChangeDescription: z.string().optional().describe("Specific description of the breaking change (optional, used when breakingChange is true)"),
 });
 
 type commitMessageInput = z.infer<typeof commitMessageInput>;
@@ -32,7 +33,7 @@ const markdownFileInput = z.object({
     title: z.string().min(1).describe("Title of the markdown document"),
     content: z.string().min(1).describe("Content of the markdown document"),
     includeMetadata: z.boolean().default(false).describe("Whether to include frontmatter metadata"),
-    metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+    metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional().describe("Metadata to include in frontmatter (if includeMetadata is true)"),
 });
 
 type markdownFileInput = z.infer<typeof markdownFileInput>;
@@ -59,36 +60,46 @@ async function generateCommitMessage({
     scope, 
     description, 
     body, 
-    breakingChange 
+    breakingChange,
+    breakingChangeDescription
 }: commitMessageInput) {
-    const git = simpleGit(rootDir);
-    
-    // Build the commit message following conventional commits format
-    let commitMessage = type;
-    if (scope) {
-        commitMessage += `(${scope})`;
+    try {
+        const git = simpleGit(rootDir);
+        
+        // Build the commit message following conventional commits format
+        let commitMessage = type;
+        if (scope) {
+            commitMessage += `(${scope})`;
+        }
+        if (breakingChange) {
+            commitMessage += "!";
+        }
+        commitMessage += `: ${description}`;
+        
+        if (body) {
+            commitMessage += `\n\n${body}`;
+        }
+        
+        if (breakingChange) {
+            const breakingText = breakingChangeDescription || body || "Breaking change introduced";
+            commitMessage += `\n\nBREAKING CHANGE: ${breakingText}`;
+        }
+        
+        // Create the commit
+        await git.commit(commitMessage);
+        
+        return {
+            message: commitMessage,
+            success: true,
+            hash: await git.revparse(['HEAD'])
+        };
+    } catch (error) {
+        return {
+            message: "",
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error occurred during commit generation"
+        };
     }
-    if (breakingChange) {
-        commitMessage += "!";
-    }
-    commitMessage += `: ${description}`;
-    
-    if (body) {
-        commitMessage += `\n\n${body}`;
-    }
-    
-    if (breakingChange && body) {
-        commitMessage += `\n\nBREAKING CHANGE: ${body}`;
-    }
-    
-    // Create the commit
-    await git.commit(commitMessage);
-    
-    return {
-        message: commitMessage,
-        success: true,
-        hash: await git.revparse(['HEAD'])
-    };
 }
 
 
@@ -99,31 +110,39 @@ async function generateMarkdownFile({
     includeMetadata,
     metadata
 }: markdownFileInput) {
-    let markdownContent = "";
-    
-    // Add frontmatter if requested
-    if (includeMetadata && metadata) {
-        markdownContent += "---\n";
-        for (const [key, value] of Object.entries(metadata)) {
-            markdownContent += `${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}\n`;
+    try {
+        let markdownContent = "";
+        
+        // Add frontmatter if requested
+        if (includeMetadata && metadata) {
+            markdownContent += "---\n";
+            for (const [key, value] of Object.entries(metadata)) {
+                markdownContent += `${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}\n`;
+            }
+            markdownContent += "---\n\n";
         }
-        markdownContent += "---\n\n";
+        
+        // Add title
+        markdownContent += `# ${title}\n\n`;
+        
+        // Add content
+        markdownContent += content;
+        
+        // Write the file
+        await writeFile(filePath, markdownContent, 'utf-8');
+        
+        return {
+            filePath,
+            success: true,
+            size: markdownContent.length
+        };
+    } catch (error) {
+        return {
+            filePath,
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error occurred during markdown file generation"
+        };
     }
-    
-    // Add title
-    markdownContent += `# ${title}\n\n`;
-    
-    // Add content
-    markdownContent += content;
-    
-    // Write the file
-    await writeFile(filePath, markdownContent, 'utf-8');
-    
-    return {
-        filePath,
-        success: true,
-        size: markdownContent.length
-    };
 }
 
 
@@ -146,3 +165,4 @@ export const generateMarkdownFileTool = tool({
     inputSchema: markdownFileInput,
     execute: generateMarkdownFile,
 });
+

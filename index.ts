@@ -6,6 +6,11 @@ import {
     generateCommitMessageTool,
     generateMarkdownFileTool
  } from "./tools";
+ import { config } from "dotenv";
+
+ 
+// Load environment variables
+config();
 
 // specify the model to use for generating review, a prompt, tools, and when to stop
 const codeReviewAgent = async (prompt: string) => {
