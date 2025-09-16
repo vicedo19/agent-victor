@@ -7,11 +7,13 @@ import { join } from "path";
 
 const excludeFiles = ["dist", "bun.lock"];
 
+// file changes in directory
 const fileChange = z.object({
     rootDir: z.string().min(1).describe("The root directory"),
 });
 
 type fileChange = z.infer<typeof fileChange>;
+
 
 // commit message generation
 const commitMessageInput = z.object({
@@ -54,31 +56,17 @@ async function getFileChangesInDirectory({ rootDir }: fileChange) {
 }
 
 
-async function generateCommitMessage({ 
-    rootDir, 
-    type, 
-    scope, 
-    description, 
-    body, 
-    breakingChange,
-    breakingChangeDescription
-}: commitMessageInput) {
+async function generateCommitMessage({ rootDir, type, scope, description, body, breakingChange, breakingChangeDescription }: commitMessageInput) {
     try {
         const git = simpleGit(rootDir);
         
         // Build the commit message following conventional commits format
         let commitMessage = type;
-        if (scope) {
-            commitMessage += `(${scope})`;
-        }
-        if (breakingChange) {
-            commitMessage += "!";
-        }
+
+        if (scope) commitMessage += `(${scope})`;
+        if (breakingChange) commitMessage += "!";
         commitMessage += `: ${description}`;
-        
-        if (body) {
-            commitMessage += `\n\n${body}`;
-        }
+        if (body) commitMessage += `\n\n${body}`;
         
         if (breakingChange) {
             const breakingText = breakingChangeDescription || body || "Breaking change introduced";
@@ -103,13 +91,7 @@ async function generateCommitMessage({
 }
 
 
-async function generateMarkdownFile({
-    filePath,
-    title,
-    content,
-    includeMetadata,
-    metadata
-}: markdownFileInput) {
+async function generateMarkdownFile({ filePath, title, content, includeMetadata, metadata }: markdownFileInput) {
     try {
         let markdownContent = "";
         
@@ -130,12 +112,8 @@ async function generateMarkdownFile({
         
         // Write the file
         await writeFile(filePath, markdownContent, 'utf-8');
-        
-        return {
-            filePath,
-            success: true,
-            size: markdownContent.length
-        };
+
+        return { filePath, success: true, size: markdownContent.length };
     } catch (error) {
         return {
             filePath,
