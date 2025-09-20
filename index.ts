@@ -27,7 +27,11 @@ const codeReviewAgent = async (prompt: string) => {
     }
 };
 
+// Get directory from command line arguments or use default
+const targetDir = process.argv[2] || '../agent-victor';
+console.log(`🔍 Starting code review for directory: ${targetDir}`);
+
 // Specify which directory the code review agent should review changes in your prompt
 await codeReviewAgent(
-    "Review the code changes in '../agent-victor' directory, make your reviews and suggestions file by file."
+    `Review the code changes in '${targetDir}' directory, make your reviews and suggestions file by file.`
 )
